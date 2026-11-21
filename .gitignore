@@ -4,3 +4,10 @@ pulse/cookie
 # Personal databases (online accounts, desktop settings): never publish them.
 libaccounts-glib/
 dconf/
+
+# Personal or machine files that never belong here.
+fish/fish_variables
+fastfetch/logo/
+gtk-3.0/bookmarks
+hyde/themes/*/wallpapers*/
+*.bak*

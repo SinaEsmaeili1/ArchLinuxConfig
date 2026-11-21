@@ -1,0 +1,55 @@
+#!/usr/bin/env bash
+# Pop-up list of audio outputs (like the Windows sound menu).
+# Picking one makes it the default and moves everything that is playing to it.
+
+current=$(pactl get-default-sink)
+
+# "name<TAB>friendly label" for every output, skipping ports with nothing plugged in
+# (like Windows, empty HDMI ports don't show up); the current output always stays
+mapfile -t sinks < <(pactl -f json list sinks | jq -r --arg cur "$current" '.[]
+    | select(.name == $cur or ([.ports[]?.availability] | all(. == "not available") | not))
+    | [.name, .description] | @tsv')
+
+labels=()
+names=()
+for line in "${sinks[@]}"; do
+    name=${line%%$'\t'*}
+    desc=${line#*$'\t'}
+    # Shorten the long Intel chipset names
+    desc=${desc/800 Series Chipset Family Audio Context Engine (ACE) Speaker/Laptop Speakers}
+    desc=${desc/800 Series Chipset Family Audio Context Engine (ACE) /}
+    desc=${desc/GB206 High Definition Audio Controller Digital Stereo (HDMI) /}
+    [[ $desc == \[*\] ]] && desc="${desc:1:-1} Monitor"
+    desc=${desc/ Output (Stereo)/}
+    case $name in bluez_*) desc="$desc  (Bluetooth)" ;; esac
+    [[ $name == "$current" ]] && desc="● $desc" || desc="   $desc"
+    labels+=("$desc")
+    names+=("$name")
+done
+
+# Self-contained look: ignore HyDE's rofi config/themes so theme switches can't break this
+theme='
+* { font: "sans 13"; background-color: transparent; text-color: #e6e6e6; }
+window { location: center; anchor: center; width: 420px; background-color: #1e1e2ef2;
+         border: 2px; border-color: #8a7cff; border-radius: 12px; padding: 12px; }
+mainbox { children: [ inputbar, listview ]; spacing: 8px; }
+inputbar { children: [ prompt ]; padding: 4px 8px; }
+prompt { text-color: #b9b2ff; }
+listview { lines: '"${#labels[@]}"'; fixed-height: false; scrollbar: false; spacing: 4px; }
+element { padding: 8px 10px; border-radius: 8px; }
+element normal.normal, element alternate.normal, element normal.active, element alternate.active { background-color: transparent; text-color: #e6e6e6; }
+element selected.normal, element selected.active { background-color: #8a7cff55; text-color: #ffffff; }
+element-text { text-color: inherit; }
+'
+choice=$(printf '%s\n' "${labels[@]}" | rofi -no-config -dmenu -i -p "Sound output" -format i -no-custom -theme-str "$theme")
+[[ -z $choice ]] && exit 0
+
+sink=${names[$choice]}
+pactl set-default-sink "$sink"
+pactl set-sink-mute "$sink" 0
+# Move apps that are already playing
+for input in $(pactl list short sink-inputs | cut -f1); do
+    pactl move-sink-input "$input" "$sink"
+done
+
+notify-send -t 2000 -r 8 -u low "Sound output" "${labels[$choice]#● }"
