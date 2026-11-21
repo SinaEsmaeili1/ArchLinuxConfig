@@ -1,2 +1,6 @@
 # The PulseAudio sign-in cookie is a secret; never publish it.
 pulse/cookie
+
+# Personal databases (online accounts, desktop settings): never publish them.
+libaccounts-glib/
+dconf/
