@@ -1,4 +1,4 @@
-# osconfig
+# Arch Linux config
 
 My Arch Linux setup on the Hyprland compositor, kept in Git so I can rebuild my desktop on any machine. It started from JaKooLit's Hyprland dotfiles and HyDE, and I've tuned it from there.
 
